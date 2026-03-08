@@ -1,11 +1,11 @@
 bl_info = {
     "name": "Render Burst",
     "category": "Render",
-    "blender": (4, 1, 1),
+    "blender": (5, 0, 1),
     "author" : "Aidy Burrows, Gleb Alexandrov, Roman Alexandrov, CreativeShrimp.com <support@creativeshrimp.com>",
-    "version" : (1, 2, 1),
+    "version" : (1, 3, 0),
     "description" :
-            "Render all cameras, one by one, and store results.",
+            "Batch render all/selected cameras with output path control and per-camera resolution.",
 }
 
 import bpy
@@ -18,6 +18,7 @@ markersDict = {}
 # Make a note of markers in scene and any bound cameras, remove the bindings
 def unbindMarkers():    
     scene = bpy.context.scene
+    markersDict.clear()
     for marker in scene.timeline_markers:
         if marker.camera:
             markersDict[marker] = marker.camera
@@ -52,6 +53,8 @@ class RenderBurst(bpy.types.Operator):
     rendering = None
     path = "//"
     disablerbbutton = False
+    original_resolution_x = None
+    original_resolution_y = None
 
     def pre(self, dummy, thrd = None):
         
@@ -75,6 +78,8 @@ class RenderBurst(bpy.types.Operator):
         self.stop = False
         self.rendering = False
         scene = bpy.context.scene
+        self.original_resolution_x = scene.render.resolution_x
+        self.original_resolution_y = scene.render.resolution_y
         wm = bpy.context.window_manager
         if wm.rb_filter.rb_filter_enum == 'selected':
             self.shots = [ o.name+'' for o in bpy.context.selected_objects if o.type=='CAMERA' and o.visible_get() == True]
@@ -82,7 +87,7 @@ class RenderBurst(bpy.types.Operator):
             self.shots = [ o.name+'' for o in bpy.context.visible_objects if o.type=='CAMERA' and o.visible_get() == True ]
 
 
-        if len(self.shots) < 0:
+        if len(self.shots) == 0:
             self.report({"WARNING"}, 'No cameras defined')
             return {"FINISHED"}        
         
@@ -106,18 +111,29 @@ class RenderBurst(bpy.types.Operator):
                 bpy.app.handlers.render_post.remove(self.post)
                 bpy.app.handlers.render_cancel.remove(self.cancelled)
                 bpy.context.window_manager.event_timer_remove(self._timer)
+                sc = bpy.context.scene
+                sc.render.resolution_x = self.original_resolution_x
+                sc.render.resolution_y = self.original_resolution_y
                 
                 
                 # Part of the markers bugfix - putting markers if any back again.
-                if len(self.shots) == 0:
-                    bindMarkers()
+                bindMarkers()
                 
                 return {"FINISHED"} 
 
             elif self.rendering is False: 
                                           
                 sc = bpy.context.scene
-                sc.camera = bpy.data.objects[self.shots[0]] 	
+                camera_obj = bpy.data.objects[self.shots[0]]
+                sc.camera = camera_obj
+
+                camera_data = camera_obj.data
+                if camera_data.rb_use_custom_resolution:
+                    sc.render.resolution_x = camera_data.rb_resolution_x
+                    sc.render.resolution_y = camera_data.rb_resolution_y
+                else:
+                    sc.render.resolution_x = self.original_resolution_x
+                    sc.render.resolution_y = self.original_resolution_y
 
                 lpath = self.path
                 fpath = sc.render.filepath
@@ -174,8 +190,33 @@ class RenderBurstCamerasPanel(bpy.types.Panel):
         row = self.layout.row()
         row.prop(wm.rb_filter, "rb_filter_enum", expand=True)
         row = self.layout.row()
+        row.prop(context.scene.render, "filepath", text="Output Path")
+        row = self.layout.row()
         row.operator("rb.renderbutton", text='Render!')
         row = self.layout.row()
+
+
+class RenderBurstCameraDataPanel(bpy.types.Panel):
+    """Creates per-camera Render Burst settings in camera data properties"""
+    bl_label = "Render Burst"
+    bl_idname = "DATA_PT_renderburst_camera"
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = "data"
+
+    @classmethod
+    def poll(cls, context):
+        return context.camera is not None
+
+    def draw(self, context):
+        camera = context.camera
+        layout = self.layout
+        layout.prop(camera, "rb_use_custom_resolution", text="Use Custom Resolution")
+        col = layout.column(align=True)
+        col.enabled = camera.rb_use_custom_resolution
+        row = col.row(align=True)
+        row.prop(camera, "rb_resolution_x", text="X")
+        row.prop(camera, "rb_resolution_y", text="Y")
 
 class OBJECT_OT_RBButton(bpy.types.Operator):
     bl_idname = "rb.renderbutton"
@@ -207,8 +248,26 @@ def register():
     register_class(RenderBurst)
     register_class(RbFilterSettings)
     register_class(RenderBurstCamerasPanel)
+    register_class(RenderBurstCameraDataPanel)
     register_class(OBJECT_OT_RBButton)
     bpy.types.WindowManager.rb_filter = bpy.props.PointerProperty(name="Render Burst Filter", type=RbFilterSettings)
+    bpy.types.Camera.rb_use_custom_resolution = bpy.props.BoolProperty(
+        name="Use Custom Resolution",
+        description="Use camera-specific render resolution for Render Burst",
+        default=False,
+    )
+    bpy.types.Camera.rb_resolution_x = bpy.props.IntProperty(
+        name="Resolution X",
+        description="Horizontal render resolution used by Render Burst for this camera",
+        default=1920,
+        min=1,
+    )
+    bpy.types.Camera.rb_resolution_y = bpy.props.IntProperty(
+        name="Resolution Y",
+        description="Vertical render resolution used by Render Burst for this camera",
+        default=1080,
+        min=1,
+    )
     bpy.types.TOPBAR_MT_render.append(menu_func)
 
 
@@ -218,7 +277,12 @@ def unregister():
     bpy.types.TOPBAR_MT_render.remove(menu_func)
     unregister_class(RbFilterSettings)
     unregister_class(RenderBurstCamerasPanel)
+    unregister_class(RenderBurstCameraDataPanel)
     unregister_class(OBJECT_OT_RBButton)
+    del bpy.types.Camera.rb_use_custom_resolution
+    del bpy.types.Camera.rb_resolution_x
+    del bpy.types.Camera.rb_resolution_y
+    del bpy.types.WindowManager.rb_filter
 
 if __name__ == "__main__":
     register()

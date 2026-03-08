@@ -1,46 +1,50 @@
-# Render Burst - Batch Rendering Add-on for Blender 4.1, 4.0, 2.8 and 2.79
+# Render Burst - Batch Camera Rendering Add-on for Blender
 
-Render all cameras, one by one, and store the results. <br />
-**Note: Blender 2.8 is supported! There are now 3 versions, one for 4.0, 2.8 and the other for 2.79. Doesn’t support animation yet.**
+Render all cameras, one by one, and store the results.
 
-Authors: Aidy Burrows, Gleb Alexandrov, Roman Alexandrov<br />
+Updated to include some features I wanted - Mark Funston
 
-![Imgur](https://i.imgur.com/VoyEm7D.jpg)
+Original Authors: Aidy Burrows, Gleb Alexandrov, Roman Alexandrov
 
+## Add-on Files in This Repo
 
-## How to Install the Add-on, step-by-step
+- `RenderBurst41.py` for Blender 5.0.1 - This is updated to include the features. Older versions have not.
+- `RenderBurst40.py` for Blender 4.0.x
+- `RenderBurst28.py` for Blender 2.80+
+- `RenderBurst27.py` for Blender 2.79
 
-1. Download **[the archive with RenderBurst and Project Files](https://github.com/VertStretch/RenderBurst/archive/master.zip)**
+## Features (`RenderBurst41.py`)
 
-2. Unpack it
+- Render mode filter: `All Cameras` or `Selected Only`
+- Output path selector in the `Render Burst` panel (Render Properties)
+- Per-camera custom resolution in the Camera Data tab:
+  - `Use Custom Resolution`
+  - `X` / `Y` resolution fields
+- File naming per rendered camera (`<camera_name><extension>`)
+- Marker camera binding workaround to avoid repeated camera renders
 
-3. Launch Blender! :) Go Edit > User Preferences > Add-ons
+Note: Animation output formats (`FFMPEG`, `AVI_JPEG`, `AVI_RAW`, `FRAMESERVER`) are not supported by this add-on workflow.
 
-4. Press the Install Add-on from File Button
+## Install
 
-![Imgur](https://i.imgur.com/Wxy068r.jpg)
+1. Open Blender.
+2. Go to `Edit > Preferences > Add-ons`.
+3. Click `Install from Disk...`.
+4. Select the script file for your Blender version (for Blender 5.0.1, use `RenderBurst41.py`).
+5. Enable the add-on.
 
-5. Navigate to the folder with the **RenderBurst.py** file, select it and click Install Add-on from File.<br />
+## Usage
 
-You should now see a new tab in the right toolshelf, called Render Burst. 
+1. Open `Render Properties > Render Burst`.
+2. Choose camera filter mode (`All Cameras` or `Selected Only`).
+3. Set `Output Path` in the same panel.
+4. Optional per-camera resolution:
+   - Select a camera.
+   - Open `Camera Data Properties > Render Burst`.
+   - Enable `Use Custom Resolution` and set `X` / `Y`.
+5. Click `Render!`.
 
-![Imgur](https://imgur.com/ZBytAbL.jpg)
+## Notes
 
-Congrats!<br />
-
-
-## How to Use Render Burst
-
-Select the mode (All Cameras or Selected) and hit **RENDER!** Simple, right? :)
-
-*Note: Don’t forget to set up the output folder in the render settings tab beforehand.*
-
-
-## Over to You
-
-Have fun and if you discover a bug or just want to say hi, feel free to drop us line at support@creativeshrimp.com
-
-Gleb on Twitter: https://twitter.com/gleb_alexandrov <br />
-Aidy on Twitter: https://twitter.com/AidyBurrows3D <br /> <br />
-Gleb on Facebook: https://www.facebook.com/CreativeShrimp/ <br />
-Aidy on Facebook: https://www.facebook.com/AidyBurrows3D/ <br />
+- If a camera does not use custom resolution, Render Burst uses the scene resolution.
+- Scene resolution is restored after the batch render finishes or is cancelled.
